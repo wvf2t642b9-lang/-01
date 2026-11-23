@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#eae9df">
+<meta name="description" content="旋转路块，带红衣向导经过歪顶坨的沿途地标，一路连到山顶。">
+<title>歪顶坨·山径拼图</title>
+<style>
+:root{color-scheme:light;--paper:#efeee4;--ink:#192f29;--muted:#4b6256;--edge:#b9c0ab;--pine:#153c33;--gold:#ffe3a5;--orange:#a8422d;font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",system-ui,sans-serif;background:var(--paper);color:var(--ink)}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 97% 4%,#d7dfcc,transparent 49%),linear-gradient(125deg,#f6f4e9,#e8e9de);min-height:100svh}
+button{font:inherit;cursor:pointer;touch-action:manipulation;color:inherit}button:focus-visible{outline:3px solid #af4d29;outline-offset:3px}
+main{max-width:1140px;margin:auto;padding:28px 34px 22px}
+.mast{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:19px}
+.location{margin:0 0 4px;color:var(--orange);font-size:14px;font-weight:800;letter-spacing:.15em}
+h1{font-family:"Songti SC","Noto Serif CJK SC","STSong",serif;font-size:clamp(37px,6.2vw,70px);letter-spacing:-.035em;line-height:1.11;margin:0;font-weight:900}
+.intro{margin:10px 0 0;color:var(--muted);font-size:15px;line-height:1.55}
+.best{flex-shrink:0;padding:8px 0 8px 16px;border-left:2px solid #a64a32;margin-bottom:1px;color:#3c564a;font-size:14px;font-variant-numeric:tabular-nums}
+.layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(265px,1fr);gap:22px;align-items:start}
+.play{border:1px solid #a7b49e;background:#f6f4ea;box-shadow:0 12px 36px #1e392715;border-radius:18px;padding:13px}
+.stages{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.stages button{border:1px solid transparent;background:#e8eadf;border-radius:8px;padding:7px 5px;display:grid;place-items:center;gap:1px;font-weight:750;font-size:15px;line-height:1.3}
+.stages button span{color:#435d4e;font-size:12px;font-weight:600}
+.stages button[aria-pressed=true]{background:#244a3d;color:#fff7df}
+.stages button[aria-pressed=true] span{color:#e0ebd7}
+.board{position:relative;overflow:hidden;border-radius:12px;padding:12px;background:#153b32;isolation:isolate;border:1px solid #163d32}
+.board canvas{position:absolute;inset:0;width:100%;height:100%;z-index:-1}
+.cells{display:grid;grid-template-columns:repeat(var(--size),minmax(0,1fr));gap:4px;width:min(100%,525px);margin:auto;position:relative}
+.cell{aspect-ratio:1;height:auto;min-width:0;position:relative;display:grid;place-items:center;border:1px solid #c0dbbe36;background:#bbceae1c;border-radius:6px;padding:0;-webkit-tap-highlight-color:transparent}
+.cell:hover:not([aria-disabled=true]){background:#d4e1bc38}.cell:focus-visible{outline:2px solid #fff1ad;outline-offset:-2px;z-index:2}
+.cell.reached{background:#d8db9f2f;border-color:#e9d99987}
+.cell.fixed{background:#d7644370;border-color:#f99e73cf}
+.cell.fixed.reached{background:#f59a5470;border-color:#ffd49a}
+.cell.suggested{outline:3px solid #ffa57c;outline-offset:-3px;z-index:1}
+.cell svg{width:100%;height:100%;position:absolute;inset:0;overflow:visible;pointer-events:none}
+.track-edge{fill:none;stroke:#0c2b23;stroke-width:22;stroke-linejoin:round;stroke-linecap:butt}
+.track{fill:none;stroke:#89af91;stroke-width:11;stroke-linecap:butt}
+.reached .track{stroke:#f5d18a}.fixed .track{stroke:#ffe0a0}
+.stone{position:relative;z-index:1;pointer-events:none;display:grid;place-items:center;width:52%;height:52%;border-radius:50%;border:1px solid #d8dbb9;background:#214637;color:#f8f1d5;font:800 clamp(11px,2.3vw,23px)/1 system-ui,sans-serif;box-shadow:0 0 0 2px #103129}
+.reached .stone{background:#f9d286;color:#26392a;border-color:#fff2bf}.fixed .stone{background:#ffe7b6;color:#68341e;border-color:#fff4cf}
+.walker{position:absolute;width:calc(78% / var(--size));height:calc(84% / var(--size));object-fit:contain;transform:translate(-50%,-58%);z-index:4;pointer-events:none;filter:drop-shadow(0 2px 4px #0a211c);transition:left .22s ease,top .22s ease}
+.walker[hidden]{display:none}
+.readout{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 1px 8px;font-size:14px;color:var(--muted)}
+.readout b{color:var(--ink);font-variant-numeric:tabular-nums}
+.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.controls button,.next{min-height:42px;border:1px solid #abb7a3;border-radius:8px;background:#edeee3;font-weight:720;font-size:14px}
+.controls button:hover:not(:disabled),.stages button:hover:not([aria-pressed=true]){background:#dbe4d2}
+button:disabled{opacity:.56;cursor:default}
+.guide{border:1px solid #a9b9a2;background:#e3e9db;border-radius:18px;overflow:hidden;box-shadow:0 12px 36px #1e392712}
+.art{position:relative;min-height:240px;overflow:hidden;isolation:isolate;background:radial-gradient(ellipse at 67% 72%,#d9a67d4f,transparent 57%),linear-gradient(145deg,#254d3f,#47664c 64%,#728568);color:#fff2d1}
+.art canvas{position:absolute;inset:0;width:100%;height:100%;z-index:-1;opacity:.69}
+.guide-copy{padding:20px 13px 15px 19px;position:relative;width:54%;z-index:1}
+.guide-copy p{margin:0 0 8px;color:#f8d99c;font-size:13px;font-weight:800;letter-spacing:.14em}
+.guide-copy h2{margin:0;font-family:"Songti SC","Noto Serif CJK SC",serif;font-size:29px;line-height:1.16}
+.guide-copy .advice{margin:11px 0 0;font-size:14px;line-height:1.55;letter-spacing:0;color:#f6f1db;font-weight:580}
+.hero{position:absolute;right:3%;bottom:2%;height:93%;width:53%;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 7px 10px #1a3425d0)}
+.side{padding:14px 16px 15px}
+.side h3{margin:0 0 6px;font-size:15px}
+.landmarks{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.landmarks li{display:flex;align-items:center;gap:7px;background:#f4f5e8a6;padding:5px 8px;border-radius:6px;font-size:14px}
+.landmarks i{flex:none;display:grid;place-items:center;background:#dbe1d1;color:#25493c;border:1px solid #aac1a8;min-width:25px;height:25px;border-radius:50%;font:800 12px system-ui}
+.landmarks li.visited i{background:#275544;color:#fff5d5;border-color:#275544}
+.landmarks small{margin-left:auto;font-size:12px;color:#466458;white-space:nowrap}
+.message{font-size:14px;line-height:1.48;margin:10px 0 0;padding:9px 10px;background:#f7f3e3;color:#393f30;border-left:3px solid #b5603f;border-radius:3px;min-height:43px}
+.next{display:block;margin-top:8px;width:100%;background:#244a3d;color:#fff4db;border-color:#244a3d}
+.next[hidden]{display:none}
+.foot{color:#4a6253;font-size:12px;line-height:1.4;margin:11px 0 0}
+@media(max-width:770px){main{padding:20px 14px}.mast{gap:10px;margin-bottom:12px}.layout{display:block}.play{padding:9px}.guide{margin-top:12px}.art{min-height:188px}.hero{height:96%;right:6%;width:44%}.guide-copy{width:61%;padding:17px}.guide-copy h2{font-size:25px}.best{font-size:12px;padding:5px 0 5px 8px}.intro{font-size:14px}.board{padding:6px}.cells{gap:2px}.side{padding:11px}.stages button{font-size:14px}.foot{margin-bottom:14px}}
+@media(max-width:390px){.mast{align-items:start;flex-direction:column;gap:5px}.best{margin:0;padding-top:0;padding-bottom:0}.guide-copy .advice{font-size:13px}.readout{font-size:13px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <header class="mast">
+    <div>
+      <p class="location">天津 · 蓟州</p>
+      <h1>歪顶坨·山径拼图</h1>
+      <p class="intro" id="instructions">点一下，路块顺时针转一格。按顺序经过地标，把起点连到山顶。</p>
+    </div>
+    <div class="best" id="best"></div>
+  </header>
+  <div class="layout">
+    <section class="play" aria-label="山径棋盘">
+      <nav class="stages" id="stages" aria-label="选择关卡"></nav>
+      <div class="board"><canvas id="terrain" aria-hidden="true" width="640" height="640"></canvas>
+        <div class="cells" id="cells" role="group" aria-describedby="instructions" aria-label="旋转路块棋盘"></div>
+      </div>
+      <div class="readout"><span>步数 <b id="moves">0</b></span><span>已连地标 <b id="progress">0 / 0</b></span></div>
+      <div class="controls">
+        <button id="undo" type="button">撤销一步</button>
+        <button id="hint" type="button">提示</button>
+        <button id="reset" type="button">重置关卡</button>
+      </div>
+    </section>
+    <aside class="guide" aria-label="向导与地标">
+      <div class="art">
+        <canvas id="guide-terrain" aria-hidden="true" width="430" height="255"></canvas>
+        <div class="guide-copy">
+          <p>山径向导</p>
+          <h2 id="guide-title">从湖边出发</h2>
+          <p class="advice" id="advice">先看起点朝哪边，再把旁边的路块接上。</p>
+        </div>
+        <img class="hero" src="guide.webp" alt="戴米色帽子和墨镜、身穿红色冲锋衣的徒步向导" width="466" height="850">
+      </div>
+      <div class="side">
+        <h3>沿途地标</h3>
+        <ol class="landmarks" id="landmarks"></ol>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+        <button type="button" class="next" id="next" hidden>下一关</button>
+        <p class="foot">关卡为歪顶坨徒步主题示意。</p>
+      </div>
+    </aside>
+  </div>
+</main>
+<script>
+"use strict";
+
+const DIRS = [
+  { dr: -1, dc: 0, name: "上", point: [50, -7] },
+  { dr: 0, dc: 1, name: "右", point: [107, 50] },
+  { dr: 1, dc: 0, name: "下", point: [50, 107] },
+  { dr: 0, dc: -1, name: "左", point: [-7, 50] },
+];
+const LEVELS = [
+  {
+    name: "湖畔初探", size: 5, seed: 24, title: "从湖边出发",
+    advice: "先看起点朝哪边，再把旁边的路块接上。",
+    route: [[4,0],[3,0],[3,1],[2,1],[2,2],[1,2],[1,3],[1,4],[0,4]],
+    stops: [[2,"杨庄水库"],[5,"林间岔口"]],
+    scramble: [0,1,0,2,0,0,1,3,0],
+  },
+  {
+    name: "林间绕行", size: 6, seed: 71, title: "穿过林间岔路",
+    advice: "先认清编号。有些岔路看似近，却会绕过你要找的地标。",
+    route: [[5,0],[5,1],[4,1],[4,2],[5,2],[5,3],[4,3],[3,3],[3,2],[2,2],[2,3],[2,4],[1,4],[1,5],[0,5]],
+    stops: [[5,"杨庄水库"],[10,"林间岔口"]],
+    scramble: [0,3,1,0,2,0,1,3,2,0,1,0,3,2,0],
+  },
+  {
+    name: "山脊寻路", size: 7, seed: 135, title: "把路线接上山脊",
+    advice: "到山顶之前，依次经过三个地标。连通的路段会亮起来。",
+    route: [[6,0],[5,0],[5,1],[6,1],[6,2],[6,3],[5,3],[4,3],[4,2],[3,2],[3,1],[2,1],[2,2],[1,2],[0,2],[0,3],[1,3],[1,4],[2,4],[2,5],[1,5],[1,6],[0,6]],
+    stops: [[5,"杨庄水库"],[12,"林间岔口"],[18,"山脊垭口"]],
+    scramble: [0,2,3,1,0,2,1,3,2,0,1,3,1,2,0,3,2,1,2,3,0,1,0],
+  },
+];
+const PAIRS = [3,5,6,9,10,12];
+const opposite = direction => (direction + 2) % 4;
+const clockwise = mask => ((mask << 1) | (mask >> 3)) & 15;
+const key = (row, col, size) => row * size + col;
+
+function turn(mask, count) {
+  for (let i = 0; i < count; i += 1) mask = clockwise(mask);
+  return mask;
+}
+
+function connection(from, to) {
+  const direction = DIRS.findIndex(({dr, dc}) => from[0] + dr === to[0] && from[1] + dc === to[1]);
+  if (direction < 0) throw new Error("Route cells must share an edge.");
+  return 1 << direction;
+}
+
+function makePuzzle(level) {
+  const {size, route, scramble} = level;
+  let seed = level.seed;
+  const tiles = Array.from({length:size * size}, () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return {mask:PAIRS[(seed >>> 12) % PAIRS.length], fixed:false};
+  });
+  const correct = route.map((cell, index) => {
+    const before = index === 0 ? 0 : connection(cell, route[index - 1]);
+    const after = index === route.length - 1 ? 0 : connection(cell, route[index + 1]);
+    const tile = key(...cell, size);
+    const mask = before | after;
+    tiles[tile] = {mask:turn(mask, scramble[index]), fixed:before === 0 || after === 0};
+    return {tile, mask};
+  });
+  const stops = level.stops.map(([index, name], order) => ({
+    tile:correct[index].tile, name, label:String(order + 1),
+  }));
+  const start = correct[0].tile;
+  const finish = correct[correct.length - 1].tile;
+  return {size, tiles, correct, stops, start, finish};
+}
+
+function trace(puzzle) {
+  const {size, tiles, start, finish, stops} = puzzle;
+  const path = [start];
+  const seen = new Set(path);
+  const order = stops.map(stop => stop.tile);
+  let index = start;
+  let arrived = -1;
+  let reached = 0;
+  let wrongOrder = false;
+  while (index !== finish) {
+    const direction = DIRS.findIndex((_, port) => port !== arrived && (tiles[index].mask & (1 << port)));
+    if (direction < 0) break;
+    const row = Math.floor(index / size) + DIRS[direction].dr;
+    const col = index % size + DIRS[direction].dc;
+    if (row < 0 || col < 0 || row >= size || col >= size) break;
+    const next = key(row, col, size);
+    const reverse = opposite(direction);
+    if (!(tiles[next].mask & (1 << reverse))) break;
+    if (seen.has(next)) break;
+    index = next;
+    arrived = reverse;
+    path.push(index);
+    seen.add(index);
+    if (index === order[reached]) reached += 1;
+    else if (order.includes(index)) wrongOrder = true;
+  }
+  return {path, visited:seen, reached, wrongOrder, summit:index === finish,
+    complete:index === finish && reached === order.length && !wrongOrder};
+}
+
+const byId = id => document.getElementById(id);
+const svgNS = "http://www.w3.org/2000/svg";
+const controls = Object.fromEntries(
+  ["stages","cells","moves","progress","best","undo","hint","reset","landmarks","message","next","guide-title","advice"]
+    .map(id => [id, byId(id)]),
+);
+
+let levelNumber = 0;
+let puzzle;
+let buttons = [];
+let legend = [];
+let walk;
+let walkTimer;
+let history = [];
+let focusTile = 0;
+let highlighted = -1;
+let finished = false;
+let records = {};
+try {
+  records = JSON.parse(localStorage.getItem("waidingtuo-trail-puzzle-v1") || "{}") || {};
+} catch { records = {}; }
+
+const levels = LEVELS.map(({name,size}, index) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = name;
+  const description = document.createElement("span");
+  description.textContent = `${size} × ${size}`;
+  button.append(description);
+  button.addEventListener("click", () => {
+    if (index !== levelNumber) loadLevel(index);
+  });
+  controls.stages.append(button);
+  return button;
+});
+
+function loadLevel(index) {
+  clearTimeout(walkTimer);
+  levelNumber = index;
+  puzzle = makePuzzle(LEVELS[index]);
+  history = [];
+  finished = false;
+  highlighted = -1;
+  focusTile = puzzle.correct[1].tile;
+  levels.forEach((button, i) => button.setAttribute("aria-pressed", i === index));
+  controls.cells.style.setProperty("--size", puzzle.size);
+  controls.cells.replaceChildren();
+  const markers = [
+    {tile:puzzle.start, label:"起", name:"徒步起点"},
+    ...puzzle.stops,
+    {tile:puzzle.finish, label:"顶", name:"歪顶坨山顶"},
+  ];
+  const named = new Map(markers.map(marker => [marker.tile, marker]));
+  buttons = puzzle.tiles.map(({fixed}, tile) => {
+    const button = document.createElement("button");
+    button.className = fixed ? "cell fixed" : "cell";
+    button.type = "button";
+    if (fixed) button.setAttribute("aria-disabled", "true");
+    button.tabIndex = tile === focusTile ? 0 : -1;
+    button.addEventListener("click", () => rotateTile(tile));
+    button.addEventListener("focus", () => focusAt(tile, false));
+    const drawing = document.createElementNS(svgNS, "svg");
+    drawing.setAttribute("viewBox","0 0 100 100");
+    drawing.setAttribute("aria-hidden","true");
+    const paths = ["track-edge","track"].map(className => {
+      const path = document.createElementNS(svgNS, "path");
+      path.setAttribute("class", className);
+      drawing.append(path);
+      return path;
+    });
+    button.append(drawing);
+    const marker = named.get(tile);
+    if (marker) {
+      const stone = document.createElement("span");
+      stone.className = "stone";
+      stone.textContent = marker.label;
+      stone.setAttribute("aria-hidden", "true");
+      button.append(stone);
+    }
+    controls.cells.append(button);
+    return {button, paths, marker};
+  });
+  walk = new Image();
+  walk.className = "walker";
+  walk.src = "guide.webp";
+  walk.alt = "";
+  walk.hidden = true;
+  controls.cells.append(walk);
+  controls.landmarks.replaceChildren();
+  legend = markers.map(marker => {
+    const item = document.createElement("li");
+    const symbol = document.createElement("i");
+    symbol.textContent = marker.label;
+    symbol.setAttribute("aria-hidden", "true");
+    const name = document.createElement("span");
+    name.textContent = marker.name;
+    const flag = document.createElement("small");
+    item.append(symbol, name, flag);
+    controls.landmarks.append(item);
+    return {item, flag, marker};
+  });
+  paint("先接亮起点相邻的路块，再沿编号往前拼。");
+}
+
+function focusAt(tile, moveFocus = true) {
+  buttons[focusTile]?.button.setAttribute("tabindex","-1");
+  focusTile = tile;
+  buttons[tile]?.button.setAttribute("tabindex","0");
+  if (moveFocus) buttons[tile]?.button.focus();
+}
+
+controls.cells.addEventListener("keydown", event => {
+  const offsets = {ArrowUp:[-1,0], ArrowRight:[0,1], ArrowDown:[1,0], ArrowLeft:[0,-1]};
+  const shift = offsets[event.key];
+  if (!shift) return;
+  event.preventDefault();
+  const size = puzzle.size;
+  const row = Math.max(0, Math.min(size - 1, Math.floor(focusTile / size) + shift[0]));
+  const col = Math.max(0, Math.min(size - 1, focusTile % size + shift[1]));
+  focusAt(key(row,col,size));
+});
+
+function rotateTile(tile) {
+  if (finished || puzzle.tiles[tile].fixed) return;
+  history.push({tile, mask:puzzle.tiles[tile].mask});
+  puzzle.tiles[tile].mask = clockwise(puzzle.tiles[tile].mask);
+  highlighted = -1;
+  const result = trace(puzzle);
+  if (result.complete) complete(result);
+  else paint();
+}
+
+function complete(result) {
+  finished = true;
+  const previous = records[levelNumber];
+  if (!Number.isInteger(previous) || history.length < previous) {
+    records[levelNumber] = history.length;
+    try { localStorage.setItem("waidingtuo-trail-puzzle-v1", JSON.stringify(records)); } catch {}
+  }
+  paint(`已抵达歪顶坨山顶！本关用了 ${history.length} 步。`);
+  walkRoute(result.path);
+}
+
+function walkRoute(path) {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let index = reduced ? path.length - 1 : 0;
+  walk.hidden = false;
+  function step() {
+    const tile = path[index];
+    const target = buttons[tile].button;
+    walk.style.left = `${target.offsetLeft + target.offsetWidth / 2}px`;
+    walk.style.top = `${target.offsetTop + target.offsetHeight / 2}px`;
+    index += 1;
+    if (index < path.length) walkTimer = setTimeout(step, 240);
+  }
+  step();
+}
+
+function paint(message) {
+  const result = trace(puzzle);
+  buttons.forEach(({button, paths, marker}, index) => {
+    const {mask, fixed} = puzzle.tiles[index];
+    const connected = DIRS.filter((_, direction) => mask & (1 << direction));
+    const path = connected.map(({point:[x,y]}) => `M 50 50 L ${x} ${y}`).join(" ");
+    paths.forEach(p => p.setAttribute("d", path));
+    button.classList.toggle("reached", result.visited.has(index));
+    button.classList.toggle("suggested", highlighted === index);
+    button.setAttribute("aria-disabled", fixed || finished ? "true" : "false");
+    const row = Math.floor(index / puzzle.size) + 1;
+    const col = index % puzzle.size + 1;
+    button.setAttribute("aria-label", `第${row}行第${col}列${marker ? " " + marker.name : ""}，朝${connected.map(({name})=>name).join("、")}${result.visited.has(index) ? "，已接通" : ""}${fixed ? "，固定" : ""}`);
+  });
+  legend.forEach(({item,flag}, index) => {
+    const active = index === 0 || (index <= puzzle.stops.length && index <= result.reached)
+      || (index === legend.length - 1 && result.complete);
+    item.classList.toggle("visited",active);
+    flag.textContent = index === 0 ? "已出发" : active ? "已接通" : "待接通";
+  });
+  controls.moves.textContent = history.length;
+  controls.progress.textContent = `${result.reached} / ${puzzle.stops.length}`;
+  controls.best.textContent = Number.isInteger(records[levelNumber]) ? `本关最佳 ${records[levelNumber]} 步` : "本关最佳 —";
+  controls.undo.disabled = history.length === 0;
+  controls.hint.disabled = finished;
+  controls["guide-title"].textContent = finished ? "登顶啦！" : LEVELS[levelNumber].title;
+  controls.advice.textContent = finished ? "你拼好了山径，红衣向导跟着你的路线走到了山顶。" : LEVELS[levelNumber].advice;
+  controls.next.hidden = !finished || levelNumber >= LEVELS.length - 1;
+  controls.message.textContent = message ?? (result.summit || result.wrongOrder
+    ? "这条路跳过了前面的地标。按编号检查路线，再接到山顶。"
+    : result.reached ? `已连通 ${result.reached} 个地标，继续顺着亮起的路往前。` : "沿着起点亮起的路，找到下一块需要旋转的拼图。");
+}
+
+controls.undo.addEventListener("click", () => {
+  const previous = history.pop();
+  if (!previous) return;
+  clearTimeout(walkTimer);
+  walk.hidden = true;
+  finished = false;
+  highlighted = -1;
+  puzzle.tiles[previous.tile].mask = previous.mask;
+  paint("已撤销上一步。");
+});
+controls.hint.addEventListener("click", () => {
+  const next = puzzle.correct.find(({tile,mask}) => puzzle.tiles[tile].mask !== mask);
+  if (!next) return;
+  highlighted = next.tile;
+  let turns = 1;
+  while (turn(puzzle.tiles[next.tile].mask, turns) !== next.mask) turns += 1;
+  paint(`试试把高亮的第 ${Math.floor(next.tile / puzzle.size) + 1} 行、第 ${next.tile % puzzle.size + 1} 列顺时针转 ${turns} 次。`);
+});
+controls.reset.addEventListener("click", () => loadLevel(levelNumber));
+controls.next.addEventListener("click", () => {
+  loadLevel(levelNumber + 1);
+  levels[levelNumber].focus();
+});
+
+function drawContours(canvas, decorative = false) {
+  const context = canvas.getContext("2d");
+  const {width,height} = canvas;
+  const cols = 68, rows = 62;
+  const heights = Array.from({length:rows + 1}, (_, r) => Array.from({length:cols + 1}, (_, c) => {
+    const x = c / cols, y = r / rows;
+    return 1.15 * Math.exp(-((x - .76) ** 2 * 14 + (y - .15) ** 2 * 7))
+      + .65 * Math.exp(-((x - .21) ** 2 * 20 + (y - .61) ** 2 * 12))
+      + .15 * Math.sin(13*x - y*8) + .05*Math.sin(29*y + x*11);
+  }));
+  const dx = width/cols, dy = height/rows;
+  for (let n = 0; n < 19; n += 1) {
+    const threshold = .03+n*.059;
+    context.beginPath();
+    for (let r = 0; r < rows; r += 1) {
+      for (let c = 0; c < cols; c += 1) {
+        const h = [heights[r][c], heights[r][c+1], heights[r+1][c+1], heights[r+1][c]];
+        const points = [[c*dx,r*dy],[(c+1)*dx,r*dy],[(c+1)*dx,(r+1)*dy],[c*dx,(r+1)*dy]];
+        const crosses = [];
+        for (let side=0;side<4;side+=1) {
+          const next = (side+1)%4;
+          if ((h[side] < threshold) === (h[next] < threshold)) continue;
+          const fraction = (threshold-h[side])/(h[next]-h[side]);
+          const [x,y] = points[side];
+          crosses.push([x+(points[next][0]-x)*fraction,y+(points[next][1]-y)*fraction]);
+        }
+        for (let i=0;i+1<crosses.length;i+=2) {
+          context.moveTo(...crosses[i]);
+          context.lineTo(...crosses[i+1]);
+        }
+      }
+    }
+    context.strokeStyle = decorative ? "#f3edb853" : (n % 5 === 0 ? "#9fbd9090" : "#779d7270");
+    context.lineWidth = n % 5 === 0 ? 1.15 : .65;
+    context.stroke();
+  }
+}
+
+drawContours(byId("terrain"));
+drawContours(byId("guide-terrain"), true);
+loadLevel(0);
+</script>
+</body>
+</html>
