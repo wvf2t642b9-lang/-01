@@ -11,3 +11,5 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;mi
 @media(max-width:730px){.detail-head img{height:162px}.mobile-nav{display:flex;gap:8px;margin:0 0 12px}.mobile-nav button{flex:1}.entries{max-height:none}.entry img{max-height:195px}}
 .hero h1{font-size:clamp(2.3rem,5.5vw,5.3rem);white-space:nowrap}
 @media(max-width:730px){.hero h1{font-size:clamp(1.85rem,8.5vw,3.8rem)}}
+
+.entry .scene{width:auto;max-width:100%;height:auto;max-height:none}.entry .scene[hidden]{display:none}

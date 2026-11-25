@@ -19,6 +19,38 @@ function loadMedia(id){
   }
   return pendingMedia.get(id);
 }
+let guanYuScenes;
+function eventScenes(person) {
+  if (person !== 'sg-004') return loadMedia(person).then(pack => pack.scenes);
+  if (!guanYuScenes) {
+    guanYuScenes = fetch('assets/chronology/sg-004.json').then(response => {
+      if (!response.ok) throw new Error('Unable to load Guan Yu illustrations');
+      return response.json();
+    }).catch(error => {
+      guanYuScenes = undefined;
+      throw error;
+    });
+  }
+  return guanYuScenes;
+}
+const sceneObserver = new IntersectionObserver(changes => {
+  for (const {target, isIntersecting} of changes) {
+    if (!isIntersecting) continue;
+    sceneObserver.unobserve(target);
+    const image = target.querySelector('img[data-scene]');
+    eventScenes(image.dataset.person).then(scenes => {
+      const source = scenes?.[image.dataset.scene];
+      if (!image.isConnected || !source) return;
+      image.src = source;
+      image.hidden = false;
+    }).catch(() => {});
+  }
+});
+function observeScenes(panel) {
+  for (const image of panel.querySelectorAll('img[data-scene]')) {
+    sceneObserver.observe(image.closest('.entry'));
+  }
+}
 function downloadPdf(person,pack){
   const raw=atob(pack.pdf.split(',')[1]), bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
   const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
@@ -90,7 +122,7 @@ function entries(events, options={}){
       +(!loc?' aria-label="'+title+'，无地图落点"':'')+'><b>'+title+'</b>'+(options.person?'':' <span>'+esc(e.name)+'</span>')+'</button>'
       +(e.title?'<p><strong>'+esc(e.title)+'</strong></p>':'')
       +(e.modern?'<small>'+esc(e.modern)+'</small>':'')
-      +(options.media?.scenes?.[e.n]?'<img src="'+options.media.scenes[e.n]+'" alt="" loading="lazy">':'')
+      +(options.person||options.timeline?'<img class="scene" data-person="'+esc(e.person)+'" data-scene="'+esc(e.n)+'" alt="'+esc(e.title||e.place)+'插画" decoding="async" hidden>':'')
       +(e.body?'<p>'+esc(e.body)+'</p>':'')+(e.note?'<small>'+esc(e.note)+'</small>':'')
       +(names.length?'<p><small>'+esc(names.join('、'))+'</small></p>':'')
       +(!options.person?'<small><a href="#person/'+e.person+'/'+e.n+'">查看'+esc(e.name)+'的人物图鉴</a></small>':'')
@@ -209,7 +241,6 @@ function detail(person, initial){
     }
   }
   const nodes=locations.filter(l=>l.events.some(e=>e.person===person.slug));
-  let media = window.ATLAS_MEDIA[person.slug];
   app.innerHTML='<section class="wrap"><div class="detail-head"><img src="'+portraits(person.slug)+'" alt="'+esc(person.name)+'立像"><div><a class="muted" href="#people">人物名录</a><h1>'+esc(person.name)+'</h1><p>'+esc(person.courtesy?'字'+person.courtesy+' · ':'')+esc(person.span)+'</p><div class="actions"><button id="openPoster" class="primary">放大图鉴</button><button id="pdfButton" class="action">下载 A3 PDF</button><span role="status" id="assetStatus"></span></div></div></div>'+mobileNav()+'<div class="split">'+shellMap()+'<div id="read"></div></div><details class="sources"><summary>史料与地望说明</summary><p>'+esc(person.note)+'</p>'+person.sources.map(s=>safeUrl(s.url)?'<a target="_blank" rel="noopener" href="'+esc(safeUrl(s.url))+'">'+esc(s.title)+'</a><br>':esc(s.title)+'<br>').join('')+'</details></section>';
   const status=document.querySelector('#assetStatus');
   const detailPortrait=app.querySelector('.detail-head img');
@@ -225,12 +256,13 @@ function detail(person, initial){
   };
   mediaReady().then(pack=>{
     if(!pack || !detailPortrait.isConnected) return;
-    media=pack;
     detailPortrait.src=pack.portrait;
-    reread();
   });
   function reread(){
-    document.querySelector('#read').innerHTML=panel('大事年表',events.length+' 条纪事 · 点选条目定位地图',entries(events,{person:true,media}));
+    const read = document.querySelector('#read');
+    sceneObserver.disconnect();
+    read.innerHTML=panel('大事年表',events.length+' 条纪事 · 点选条目定位地图',entries(events,{person:true}));
+    observeScenes(read);
     drawMap(nodes,person,l=>{
       selectedLocation=l.id;
       selectedEvent=key(l.events.find(e=>e.person===person.slug));
@@ -277,7 +309,10 @@ function chronology(){
     const nodes=[...new Map(events.filter(pointOK).map(e=>{const l=eventLocation[key(e)];return [l.id,l];})).values()];
     const loc=nodes.find(l=>l.id===selectedLocation);
     const chosen=loc?events.filter(e=>eventLocation[key(e)]?.id===loc.id):events;
-    document.querySelector('#read').innerHTML=panel(loc?currentYear+'年 · '+loc.title:currentYear+'年','共 '+events.length+' 条纪事 · 约年与范围按原图注记', (loc?'<div class="entry"><button id="clearLoc">显示该年全部纪事</button></div>':'')+entries(chosen));
+    const read = document.querySelector('#read');
+    sceneObserver.disconnect();
+    read.innerHTML=panel(loc?currentYear+'年 · '+loc.title:currentYear+'年','共 '+events.length+' 条纪事 · 约年与范围按原图注记', (loc?'<div class="entry"><button id="clearLoc">显示该年全部纪事</button></div>':'')+entries(chosen,{timeline:true}));
+    observeScenes(read);
     document.querySelector('#clearLoc')?.addEventListener('click',()=>{selectedLocation='';viewBox=null;update();});
     drawMap(nodes,null,l=>{selectedLocation=l.id;update();},true);
     eventClicks(chosen,update);
@@ -305,6 +340,7 @@ function chronology(){
   update();
 }
 function render(){
+  sceneObserver.disconnect();
   const [page,id,extra]=route();
   const mode=page==='person'?'person/'+id:page;
   if(mode!==renderedMode){viewBox=null;selectedLocation='';selectedEvent='';renderedMode=mode;}
