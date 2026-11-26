@@ -19,19 +19,19 @@ function loadMedia(id){
   }
   return pendingMedia.get(id);
 }
-let guanYuScenes;
+const pendingScenes = new Map();
 function eventScenes(person) {
-  if (person !== 'sg-004') return loadMedia(person).then(pack => pack.scenes);
-  if (!guanYuScenes) {
-    guanYuScenes = fetch('assets/chronology/sg-004.json').then(response => {
-      if (!response.ok) throw new Error('Unable to load Guan Yu illustrations');
+  if (!pendingScenes.has(person)) {
+    const request = fetch('assets/chronology/' + person + '.json?v=timeline-3').then(response => {
+      if (!response.ok) throw new Error('Unable to load event illustrations');
       return response.json();
     }).catch(error => {
-      guanYuScenes = undefined;
+      pendingScenes.delete(person);
       throw error;
     });
+    pendingScenes.set(person, request);
   }
-  return guanYuScenes;
+  return pendingScenes.get(person);
 }
 const sceneObserver = new IntersectionObserver(changes => {
   for (const {target, isIntersecting} of changes) {
@@ -122,7 +122,7 @@ function entries(events, options={}){
       +(!loc?' aria-label="'+title+'，无地图落点"':'')+'><b>'+title+'</b>'+(options.person?'':' <span>'+esc(e.name)+'</span>')+'</button>'
       +(e.title?'<p><strong>'+esc(e.title)+'</strong></p>':'')
       +(e.modern?'<small>'+esc(e.modern)+'</small>':'')
-      +(options.person||options.timeline?'<img class="scene" data-person="'+esc(e.person)+'" data-scene="'+esc(e.n)+'" alt="'+esc(e.title||e.place)+'插画" decoding="async" hidden>':'')
+      +(options.person||options.timeline?'<img class="scene" width="384" height="256" data-person="'+esc(e.person)+'" data-scene="'+esc(e.n)+'" alt="'+esc(e.title||e.place)+'插画" decoding="async" hidden>':'')
       +(e.body?'<p>'+esc(e.body)+'</p>':'')+(e.note?'<small>'+esc(e.note)+'</small>':'')
       +(names.length?'<p><small>'+esc(names.join('、'))+'</small></p>':'')
       +(!options.person?'<small><a href="#person/'+e.person+'/'+e.n+'">查看'+esc(e.name)+'的人物图鉴</a></small>':'')

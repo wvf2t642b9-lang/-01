@@ -12,4 +12,4 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;mi
 .hero h1{font-size:clamp(2.3rem,5.5vw,5.3rem);white-space:nowrap}
 @media(max-width:730px){.hero h1{font-size:clamp(1.85rem,8.5vw,3.8rem)}}
 
-.entry .scene{width:auto;max-width:100%;height:auto;max-height:none}.entry .scene[hidden]{display:none}
+.entry .scene{width:384px;max-width:100%;height:auto;max-height:none;aspect-ratio:3/2}.entry .scene[hidden]{display:none}

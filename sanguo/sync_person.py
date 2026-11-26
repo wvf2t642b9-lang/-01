@@ -9,6 +9,8 @@ import json,re
 import fitz
 from PIL import Image
 
+from timeline_art import render_scenes
+
 def read_index(path):
     return json.loads(path.read_text().removeprefix('window.ATLAS = ').strip().removesuffix(';'))
 
@@ -79,12 +81,14 @@ def sync(directory,pdf,archive,replace=False):
         portrait=Image.open(BytesIO(files.read(min(portraits,key=lambda name:('original' not in name,len(name))))))
         person['thumb']=photograph(portrait,(275,420),78)
         large_portrait=photograph(portrait,(480,700),82)
-    slug=person['slug']
+        slug=person['slug']
+        event_numbers=[event['n'] for event in person['events']]
+        if not event_numbers or len(set(event_numbers))!=len(event_numbers):
+            raise ValueError('Missing event data or repeated event numbers')
+        scenes={n:uri('image/webp',raw) for n,raw in render_scenes(files,slug,event_numbers).items()}
     existing=next((p for p in people if p['slug']==slug),None)
     if existing and (not replace or existing['name']!=person['name']):
         raise ValueError(f'Already has {slug} {existing["name"]}')
-    if not person['events'] or len({e['n'] for e in person['events']})!=len(person['events']):
-        raise ValueError('Missing event data or repeated event numbers')
     with fitz.open(pdf) as doc:
         if len(doc)!=1 or abs(doc[0].rect.width-1190.55)>1 or abs(doc[0].rect.height-841.89)>1:
             raise ValueError('Expected a single-page landscape A3 PDF')
@@ -92,14 +96,11 @@ def sync(directory,pdf,archive,replace=False):
         if person['name']+'大事年表' not in page.get_text():
             raise ValueError('PDF does not match the character in the ZIP')
         poster=rgb(page.get_pixmap(matrix=fitz.Matrix(2.25,2.25),alpha=False))
-        cell=(page.rect.width-36)/len(person['events'])
-        scenes={}
-        for i,event in enumerate(person['events']):
-            x=20+i*cell
-            tile=fitz.Rect(x,692,x+cell-4,765)
-            scenes[event['n']]=photograph(rgb(page.get_pixmap(matrix=fitz.Matrix(2.6,2.6),clip=tile)),(270,200),78)
         pack=dict(portrait=large_portrait,poster=photograph(poster,(2250,1650),82),
-                  pdf=printable(poster),scenes=scenes)
+                  pdf=printable(poster))
+    scene_path=directory/'assets'/'chronology'/f'{slug}.json'
+    scene_path.parent.mkdir(parents=True,exist_ok=True)
+    scene_path.write_text(json.dumps(scenes,separators=(',',':'))+'\n')
     people=[p for p in people if p['slug']!=slug]+[person]
     people.sort(key=lambda item:int(item['slug'][3:]))
     write_js(directory/'assets'/f'{slug}.js',"window.ATLAS_MEDIA["+repr(slug)+"] = ",pack)
